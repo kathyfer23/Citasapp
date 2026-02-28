@@ -1,0 +1,30 @@
+# Node
+node_modules/
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Flutter
+frontend/citas_app/build/
+frontend/citas_app/.dart_tool/
+frontend/citas_app/.packages
+frontend/citas_app/.pub-cache/
+frontend/citas_app/.pub/
+frontend/citas_app/pubspec.lock
+
+# Prisma
+backend/prisma/migrations/

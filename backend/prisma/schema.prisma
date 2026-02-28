@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de Usuario (Profesionales: doctores, psicólogos, etc.)
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  password   String
+  name       String
+  profession String
+  phone      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relaciones
+  patients     Patient[]
+  appointments Appointment[]
+
+  @@map("users")
+}
+
+// Modelo de Paciente
+model Patient {
+  id        String    @id @default(uuid())
+  email     String
+  firstName String
+  lastName  String
+  phone     String?
+  birthDate DateTime?
+  notes     String?   @db.Text
+  isNew     Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relación con el profesional
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relación con citas
+  appointments Appointment[]
+
+  // Índices
+  @@unique([email, userId])
+  @@index([userId])
+  @@map("patients")
+}
+
+// Modelo de Cita
+model Appointment {
+  id           String   @id @default(uuid())
+  dateTime     DateTime
+  duration     Int      @default(30) // duración en minutos
+  status       String   @default("scheduled") // scheduled, completed, cancelled
+  notes        String?  @db.Text
+  reminderSent Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relación con el profesional
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relación con el paciente
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  // Índices
+  @@index([userId])
+  @@index([patientId])
+  @@index([dateTime])
+  @@index([status])
+  @@map("appointments")
+}

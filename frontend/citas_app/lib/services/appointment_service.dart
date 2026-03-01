@@ -161,22 +161,25 @@ class AppointmentService {
     }
   }
 
-  Future<Map<String, dynamic>> sendWhatsAppReminder(String appointmentId) async {
+  Future<Map<String, dynamic>> getWhatsAppLink(String appointmentId) async {
     try {
-      final response = await _api.post(
+      final response = await _api.get(
         '${ApiConfig.reminders}/$appointmentId/whatsapp',
       );
 
       if (response.data['success']) {
-        return {'success': true};
+        return {
+          'success': true,
+          'whatsappUrl': response.data['data']['whatsappUrl'],
+        };
       }
 
       return {'success': false, 'message': response.data['message']};
     } on DioException catch (e) {
-      final msg = e.response?.data?['message'] ?? 'Error al enviar WhatsApp';
+      final msg = e.response?.data?['message'] ?? 'Error al generar link de WhatsApp';
       return {'success': false, 'message': msg};
     } catch (e) {
-      return {'success': false, 'message': 'Error al enviar WhatsApp'};
+      return {'success': false, 'message': 'Error al generar link de WhatsApp'};
     }
   }
 

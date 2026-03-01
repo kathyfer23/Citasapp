@@ -36,6 +36,9 @@ dependencies:
   # Web APIs (Speech Recognition)
   web: ^1.0.0
 
+  # Abrir URLs externas (WhatsApp wa.me)
+  url_launcher: ^6.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

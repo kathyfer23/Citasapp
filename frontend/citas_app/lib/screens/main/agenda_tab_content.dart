@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/routes.dart';
 import '../../config/theme.dart';
 import '../../models/appointment_model.dart';
@@ -415,16 +416,25 @@ class _AgendaTabContentState extends State<AgendaTabContent> {
     String appointmentId,
     AppointmentProvider provider,
   ) async {
-    final success = await provider.sendWhatsAppReminder(appointmentId);
-    if (context.mounted) {
+    final url = await provider.getWhatsAppLink(appointmentId);
+    if (url != null) {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo abrir WhatsApp'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } else if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            success
-                ? 'WhatsApp enviado'
-                : provider.error ?? 'Error al enviar WhatsApp',
-          ),
-          backgroundColor: success ? AppColors.success : AppColors.error,
+          content: Text(provider.error ?? 'Error al generar link de WhatsApp'),
+          backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
       );

@@ -18,7 +18,7 @@ const idValidation = [
 // Enviar recordatorio por email
 router.post('/:appointmentId', idValidation, validate, reminderController.sendReminder);
 
-// Enviar recordatorio por WhatsApp
-router.post('/:appointmentId/whatsapp', idValidation, validate, reminderController.sendWhatsAppReminderManual);
+// Generar link WhatsApp con mensaje prellenado
+router.get('/:appointmentId/whatsapp', idValidation, validate, reminderController.getWhatsAppLink);
 
 module.exports = router;

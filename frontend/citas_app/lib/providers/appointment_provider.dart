@@ -250,8 +250,10 @@ class AppointmentProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> sendWhatsAppReminder(String appointmentId) async {
-    final result = await _appointmentService.sendWhatsAppReminder(appointmentId);
+  /// Obtiene el link wa.me del backend y marca como enviado localmente.
+  /// Retorna la URL de WhatsApp o null si hay error.
+  Future<String?> getWhatsAppLink(String appointmentId) async {
+    final result = await _appointmentService.getWhatsAppLink(appointmentId);
 
     if (result['success']) {
       final index = _appointments.indexWhere((a) => a.id == appointmentId);
@@ -259,11 +261,11 @@ class AppointmentProvider with ChangeNotifier {
         _appointments[index] = _appointments[index].copyWith(whatsappReminderSent: true);
         notifyListeners();
       }
-      return true;
+      return result['whatsappUrl'] as String;
     } else {
       _error = result['message'];
       notifyListeners();
-      return false;
+      return null;
     }
   }
 

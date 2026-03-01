@@ -8,6 +8,7 @@ class AppointmentCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onSendReminder;
   final VoidCallback? onSendWhatsApp;
+  final VoidCallback? onReschedule;
   final Function(AppointmentStatus)? onUpdateStatus;
 
   const AppointmentCard({
@@ -16,6 +17,7 @@ class AppointmentCard extends StatelessWidget {
     this.onTap,
     this.onSendReminder,
     this.onSendWhatsApp,
+    this.onReschedule,
     this.onUpdateStatus,
   });
 
@@ -265,6 +267,16 @@ class AppointmentCard extends StatelessWidget {
                         ),
                       ),
 
+                    // Reprogramar
+                    TextButton.icon(
+                      onPressed: onReschedule,
+                      icon: const Icon(Icons.edit_calendar, size: 18),
+                      label: const Text('Reprogramar'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                      ),
+                    ),
+
                     // Marcar como completada
                     TextButton.icon(
                       onPressed: () => onUpdateStatus?.call(AppointmentStatus.completed),
@@ -274,7 +286,7 @@ class AppointmentCard extends StatelessWidget {
                         foregroundColor: AppColors.success,
                       ),
                     ),
-                    
+
                     // Cancelar
                     TextButton.icon(
                       onPressed: () => onUpdateStatus?.call(AppointmentStatus.cancelled),

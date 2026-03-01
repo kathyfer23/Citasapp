@@ -144,6 +144,11 @@ class _AgendaTabContentState extends State<AgendaTabContent> {
                               _sendReminder(context, appointment.id, provider),
                           onSendWhatsApp: () =>
                               _sendWhatsAppReminder(context, appointment.id, provider),
+                          onReschedule: () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.appointmentForm,
+                            arguments: {'appointmentId': appointment.id},
+                          ).then((_) => provider.loadAppointments()),
                           onUpdateStatus: (status) =>
                               provider.updateStatus(appointment.id, status),
                         ),

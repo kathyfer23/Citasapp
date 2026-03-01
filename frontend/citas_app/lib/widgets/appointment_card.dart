@@ -7,6 +7,7 @@ class AppointmentCard extends StatelessWidget {
   final Appointment appointment;
   final VoidCallback? onTap;
   final VoidCallback? onSendReminder;
+  final VoidCallback? onSendWhatsApp;
   final Function(AppointmentStatus)? onUpdateStatus;
 
   const AppointmentCard({
@@ -14,6 +15,7 @@ class AppointmentCard extends StatelessWidget {
     required this.appointment,
     this.onTap,
     this.onSendReminder,
+    this.onSendWhatsApp,
     this.onUpdateStatus,
   });
 
@@ -158,6 +160,48 @@ class AppointmentCard extends StatelessWidget {
                 ],
               ),
               
+              // Badges de transcripción y resumen IA
+              if (appointment.transcription != null || appointment.aiSummary != null) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    if (appointment.transcription != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.info.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Transcripción',
+                          style: TextStyle(
+                            color: AppColors.info,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    if (appointment.aiSummary != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Resumen IA',
+                          style: TextStyle(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+
               // Notas si existen
               if (appointment.notes != null && appointment.notes!.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -197,17 +241,30 @@ class AppointmentCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    // Enviar recordatorio
+                    // Enviar recordatorio email
                     if (!appointment.reminderSent && !appointment.isPast)
                       TextButton.icon(
                         onPressed: onSendReminder,
                         icon: const Icon(Icons.mail_outline, size: 18),
-                        label: const Text('Recordatorio'),
+                        label: const Text('Email'),
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.info,
                         ),
                       ),
-                    
+
+                    // Enviar WhatsApp
+                    if (!appointment.whatsappReminderSent &&
+                        !appointment.isPast &&
+                        appointment.patient?.phone != null)
+                      TextButton.icon(
+                        onPressed: onSendWhatsApp,
+                        icon: const Icon(Icons.chat, size: 18),
+                        label: const Text('WhatsApp'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF25D366),
+                        ),
+                      ),
+
                     // Marcar como completada
                     TextButton.icon(
                       onPressed: () => onUpdateStatus?.call(AppointmentStatus.completed),

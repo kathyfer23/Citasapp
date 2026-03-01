@@ -20,6 +20,9 @@ class Appointment {
   final AppointmentStatus status;
   final String? notes;
   final bool reminderSent;
+  final bool whatsappReminderSent;
+  final String? transcription;
+  final String? aiSummary;
   final DateTime createdAt;
   final String patientId;
   final Patient? patient;
@@ -31,6 +34,9 @@ class Appointment {
     this.status = AppointmentStatus.scheduled,
     this.notes,
     this.reminderSent = false,
+    this.whatsappReminderSent = false,
+    this.transcription,
+    this.aiSummary,
     required this.createdAt,
     required this.patientId,
     this.patient,
@@ -54,10 +60,13 @@ class Appointment {
       status: AppointmentStatus.fromString(json['status'] ?? 'scheduled'),
       notes: json['notes'],
       reminderSent: json['reminderSent'] ?? false,
+      whatsappReminderSent: json['whatsappReminderSent'] ?? false,
+      transcription: json['transcription'],
+      aiSummary: json['aiSummary'],
       createdAt: DateTime.parse(json['createdAt']),
       patientId: json['patientId'],
-      patient: json['patient'] != null 
-          ? Patient.fromJson(json['patient']) 
+      patient: json['patient'] != null
+          ? Patient.fromJson(json['patient'])
           : null,
     );
   }
@@ -78,6 +87,9 @@ class Appointment {
     AppointmentStatus? status,
     String? notes,
     bool? reminderSent,
+    bool? whatsappReminderSent,
+    String? transcription,
+    String? aiSummary,
     String? patientId,
     Patient? patient,
   }) {
@@ -88,6 +100,9 @@ class Appointment {
       status: status ?? this.status,
       notes: notes ?? this.notes,
       reminderSent: reminderSent ?? this.reminderSent,
+      whatsappReminderSent: whatsappReminderSent ?? this.whatsappReminderSent,
+      transcription: transcription ?? this.transcription,
+      aiSummary: aiSummary ?? this.aiSummary,
       createdAt: createdAt,
       patientId: patientId ?? this.patientId,
       patient: patient ?? this.patient,

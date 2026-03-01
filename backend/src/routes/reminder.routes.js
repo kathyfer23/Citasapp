@@ -15,7 +15,10 @@ const idValidation = [
     .withMessage('ID de cita inválido')
 ];
 
-// Enviar recordatorio manual
+// Enviar recordatorio por email
 router.post('/:appointmentId', idValidation, validate, reminderController.sendReminder);
+
+// Enviar recordatorio por WhatsApp
+router.post('/:appointmentId/whatsapp', idValidation, validate, reminderController.sendWhatsAppReminderManual);
 
 module.exports = router;

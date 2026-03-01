@@ -63,6 +63,9 @@ model Appointment {
   status       String   @default("scheduled") // scheduled, completed, cancelled
   notes        String?  @db.Text
   reminderSent Boolean  @default(false)
+  whatsappReminderSent Boolean @default(false)
+  transcription String? @db.Text
+  aiSummary     String? @db.Text
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

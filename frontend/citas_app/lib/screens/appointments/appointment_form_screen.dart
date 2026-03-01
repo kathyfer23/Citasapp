@@ -343,6 +343,109 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
               ),
               const SizedBox(height: 24),
 
+              // Preview de conflictos y citas del día
+              Consumer<AppointmentProvider>(
+                builder: (context, aptProvider, _) {
+                  final dayAppointments = aptProvider.getAppointmentsForDate(_selectedDate);
+                  final conflict = aptProvider.checkConflict(
+                    _appointmentDateTime,
+                    _duration,
+                    excludeId: widget.appointmentId,
+                  );
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Alerta de conflicto
+                      if (conflict != null)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: AppColors.error),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Conflicto: ${conflict.patient?.fullName ?? "Paciente"} de '
+                                  '${DateFormat('HH:mm').format(conflict.dateTime)} a '
+                                  '${DateFormat('HH:mm').format(conflict.endTime)}',
+                                  style: const TextStyle(
+                                    color: AppColors.error,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // Citas del día seleccionado
+                      if (dayAppointments.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          'Citas del ${DateFormat('d MMMM', 'es').format(_selectedDate)} (${dayAppointments.length})',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...dayAppointments.map((apt) {
+                          final isConflict = conflict != null && apt.id == conflict.id;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isConflict
+                                  ? AppColors.error.withOpacity(0.08)
+                                  : AppColors.background,
+                              borderRadius: BorderRadius.circular(8),
+                              border: isConflict
+                                  ? Border.all(color: AppColors.error.withOpacity(0.3))
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Text(
+                                  '${DateFormat('HH:mm').format(apt.dateTime)} - ${DateFormat('HH:mm').format(apt.endTime)}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                    color: isConflict ? AppColors.error : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    apt.patient?.fullName ?? 'Paciente',
+                                    style: const TextStyle(fontSize: 13),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  '${apt.duration} min',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+
               // Notas
               CustomTextField(
                 controller: _notesController,

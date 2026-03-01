@@ -47,4 +47,8 @@ router.put('/:id', [...idValidation, ...appointmentValidation], validate, appoin
 router.patch('/:id/status', [...idValidation, ...statusValidation], validate, appointmentController.updateStatus);
 router.delete('/:id', idValidation, validate, appointmentController.delete);
 
+// Transcripción y resumen IA
+router.post('/:id/transcription', idValidation, validate, appointmentController.saveTranscription);
+router.post('/:id/summarize', idValidation, validate, appointmentController.summarize);
+
 module.exports = router;

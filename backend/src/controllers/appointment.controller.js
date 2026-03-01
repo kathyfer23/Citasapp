@@ -1,5 +1,55 @@
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/response');
 const { sendAppointmentConfirmation } = require('../services/email.service');
+const { generateConsultationSummary } = require('../services/ai.service');
+
+/**
+ * Busca una cita que conflicte con el horario dado.
+ * @param {object} prisma - Prisma client
+ * @param {string} userId - ID del profesional
+ * @param {Date} dateTime - Inicio de la nueva cita
+ * @param {number} duration - Duración en minutos
+ * @param {string|null} excludeId - ID de cita a excluir (para edición)
+ * @returns {object|null} Objeto con mensaje de conflicto, o null si no hay conflicto
+ */
+const findConflict = async (prisma, userId, dateTime, duration, excludeId = null) => {
+  const appointmentDateTime = new Date(dateTime);
+  const endTime = new Date(appointmentDateTime.getTime() + duration * 60000);
+
+  const where = {
+    userId,
+    status: 'scheduled',
+    ...(excludeId && { id: { not: excludeId } }),
+    AND: [
+      { dateTime: { lt: endTime } },
+      { dateTime: { gte: new Date(appointmentDateTime.getTime() - 480 * 60000) } }
+    ]
+  };
+
+  const conflictingAppointment = await prisma.appointment.findFirst({
+    where,
+    include: {
+      patient: {
+        select: { firstName: true, lastName: true }
+      }
+    },
+    orderBy: { dateTime: 'asc' }
+  });
+
+  if (conflictingAppointment) {
+    const conflictStart = new Date(conflictingAppointment.dateTime);
+    const conflictEnd = new Date(conflictStart.getTime() + conflictingAppointment.duration * 60000);
+
+    if (appointmentDateTime < conflictEnd && endTime > conflictStart) {
+      const conflictTimeStart = conflictStart.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      const conflictTimeEnd = conflictEnd.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      const patientName = `${conflictingAppointment.patient.firstName} ${conflictingAppointment.patient.lastName}`;
+
+      return `No se puede agendar: ya tienes una cita con ${patientName} de ${conflictTimeStart} a ${conflictTimeEnd}`;
+    }
+  }
+
+  return null;
+};
 
 const getAll = async (req, res) => {
   try {
@@ -102,58 +152,12 @@ const create = async (req, res) => {
     }
 
     // Verificar disponibilidad (no hay otra cita en ese horario)
-    const appointmentDateTime = new Date(dateTime);
-    const endTime = new Date(appointmentDateTime.getTime() + duration * 60000);
-
-    const conflictingAppointment = await req.prisma.appointment.findFirst({
-      where: {
-        userId: req.user.id,
-        status: 'scheduled',
-        AND: [
-          {
-            dateTime: {
-              lt: endTime
-            }
-          },
-          {
-            dateTime: {
-              gte: new Date(appointmentDateTime.getTime() - 480 * 60000) // 8 horas antes máximo
-            }
-          }
-        ]
-      },
-      include: {
-        patient: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        }
-      },
-      orderBy: {
-        dateTime: 'asc'
-      }
-    });
-
-    // Verificar si realmente hay traslape
-    if (conflictingAppointment) {
-      const conflictStart = new Date(conflictingAppointment.dateTime);
-      const conflictEnd = new Date(conflictStart.getTime() + conflictingAppointment.duration * 60000);
-      
-      // Hay traslape si: la nueva cita empieza antes de que termine la existente
-      // Y la nueva cita termina después de que empiece la existente
-      if (appointmentDateTime < conflictEnd && endTime > conflictStart) {
-        const conflictTimeStart = conflictStart.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-        const conflictTimeEnd = conflictEnd.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-        const patientName = `${conflictingAppointment.patient.firstName} ${conflictingAppointment.patient.lastName}`;
-        
-        return errorResponse(
-          res, 
-          `No se puede agendar: ya tienes una cita con ${patientName} de ${conflictTimeStart} a ${conflictTimeEnd}`,
-          400
-        );
-      }
+    const conflictMessage = await findConflict(req.prisma, req.user.id, dateTime, duration);
+    if (conflictMessage) {
+      return errorResponse(res, conflictMessage, 400);
     }
+
+    const appointmentDateTime = new Date(dateTime);
 
     const appointment = await req.prisma.appointment.create({
       data: {
@@ -222,6 +226,12 @@ const update = async (req, res) => {
       return errorResponse(res, 'Paciente no encontrado', 404);
     }
 
+    // Verificar conflictos (excluyendo la cita que se está editando)
+    const conflictMessage = await findConflict(req.prisma, req.user.id, dateTime, duration, id);
+    if (conflictMessage) {
+      return errorResponse(res, conflictMessage, 400);
+    }
+
     const appointment = await req.prisma.appointment.update({
       where: { id },
       data: {
@@ -229,7 +239,8 @@ const update = async (req, res) => {
         dateTime: new Date(dateTime),
         duration,
         notes: notes || null,
-        reminderSent: false // Resetear para enviar nuevo recordatorio
+        reminderSent: false,
+        whatsappReminderSent: false
       },
       include: {
         patient: true
@@ -302,11 +313,93 @@ const deleteAppointment = async (req, res) => {
   }
 };
 
+const saveTranscription = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { transcription } = req.body;
+
+    if (!transcription || typeof transcription !== 'string' || !transcription.trim()) {
+      return errorResponse(res, 'La transcripción es requerida', 400);
+    }
+
+    const existingAppointment = await req.prisma.appointment.findFirst({
+      where: { id, userId: req.user.id }
+    });
+
+    if (!existingAppointment) {
+      return errorResponse(res, 'Cita no encontrada', 404);
+    }
+
+    const appointment = await req.prisma.appointment.update({
+      where: { id },
+      data: { transcription: transcription.trim() },
+      include: { patient: true }
+    });
+
+    return successResponse(res, appointment, 'Transcripción guardada exitosamente');
+  } catch (error) {
+    console.error('Error guardando transcripción:', error);
+    return errorResponse(res, 'Error al guardar transcripción', 500);
+  }
+};
+
+const summarize = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { transcription: bodyTranscription } = req.body || {};
+
+    const existingAppointment = await req.prisma.appointment.findFirst({
+      where: { id, userId: req.user.id },
+      include: {
+        patient: { select: { firstName: true, lastName: true } },
+        user: { select: { name: true } }
+      }
+    });
+
+    if (!existingAppointment) {
+      return errorResponse(res, 'Cita no encontrada', 404);
+    }
+
+    const text = bodyTranscription || existingAppointment.transcription;
+
+    if (!text || !text.trim()) {
+      return errorResponse(res, 'No hay transcripción disponible para resumir', 400);
+    }
+
+    const context = {
+      patientName: `${existingAppointment.patient.firstName} ${existingAppointment.patient.lastName}`,
+      professionalName: existingAppointment.user.name
+    };
+
+    const result = await generateConsultationSummary(text, context);
+
+    if (!result.success) {
+      return errorResponse(res, result.error || 'Error al generar resumen', 500);
+    }
+
+    const appointment = await req.prisma.appointment.update({
+      where: { id },
+      data: {
+        aiSummary: result.summary,
+        ...(bodyTranscription && { transcription: bodyTranscription.trim() })
+      },
+      include: { patient: true }
+    });
+
+    return successResponse(res, appointment, 'Resumen generado exitosamente');
+  } catch (error) {
+    console.error('Error generando resumen:', error);
+    return errorResponse(res, 'Error al generar resumen', 500);
+  }
+};
+
 module.exports = {
   getAll,
   getById,
   create,
   update,
   updateStatus,
-  delete: deleteAppointment
+  delete: deleteAppointment,
+  saveTranscription,
+  summarize
 };

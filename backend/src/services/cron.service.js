@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const { sendAppointmentReminder } = require('./email.service');
+const { sendWhatsAppReminder, isWhatsAppConfigured } = require('./whatsapp.service');
 
 /**
  * Inicializa el cron job para enviar recordatorios automáticos
@@ -9,22 +10,24 @@ const initReminderCron = (prisma) => {
   // Ejecutar cada hora en el minuto 0
   cron.schedule('0 * * * *', async () => {
     console.log('[CRON] Verificando citas para enviar recordatorios...');
-    
+
     try {
       const now = new Date();
       const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       const in23Hours = new Date(now.getTime() + 23 * 60 * 60 * 1000);
 
-      // Buscar citas que estén entre 23 y 24 horas en el futuro
-      // y que no hayan recibido recordatorio
+      // Buscar citas que necesiten recordatorio (email o WhatsApp)
       const appointments = await prisma.appointment.findMany({
         where: {
           dateTime: {
             gte: in23Hours,
             lte: in24Hours
           },
-          reminderSent: false,
-          status: 'scheduled'
+          status: 'scheduled',
+          OR: [
+            { reminderSent: false },
+            { whatsappReminderSent: false },
+          ]
         },
         include: {
           patient: true,
@@ -40,22 +43,47 @@ const initReminderCron = (prisma) => {
 
       console.log(`[CRON] Encontradas ${appointments.length} citas para recordatorio`);
 
-      for (const appointment of appointments) {
-        const result = await sendAppointmentReminder(
-          appointment,
-          appointment.patient,
-          appointment.user
-        );
+      const whatsappEnabled = isWhatsAppConfigured();
 
-        if (result.success) {
-          // Marcar como enviado
+      for (const appointment of appointments) {
+        const updateData = {};
+
+        // Enviar email si no se ha enviado
+        if (!appointment.reminderSent) {
+          const emailResult = await sendAppointmentReminder(
+            appointment,
+            appointment.patient,
+            appointment.user
+          );
+          if (emailResult.success) {
+            updateData.reminderSent = true;
+            console.log(`[CRON] Email enviado para cita ${appointment.id}`);
+          } else {
+            console.error(`[CRON] Error email cita ${appointment.id}:`, emailResult.error);
+          }
+        }
+
+        // Enviar WhatsApp si no se ha enviado, el paciente tiene teléfono y está configurado
+        if (!appointment.whatsappReminderSent && whatsappEnabled && appointment.patient.phone) {
+          const waResult = await sendWhatsAppReminder(
+            appointment,
+            appointment.patient,
+            appointment.user
+          );
+          if (waResult.success) {
+            updateData.whatsappReminderSent = true;
+            console.log(`[CRON] WhatsApp enviado para cita ${appointment.id}`);
+          } else {
+            console.error(`[CRON] Error WhatsApp cita ${appointment.id}:`, waResult.error);
+          }
+        }
+
+        // Actualizar flags independientemente
+        if (Object.keys(updateData).length > 0) {
           await prisma.appointment.update({
             where: { id: appointment.id },
-            data: { reminderSent: true }
+            data: updateData
           });
-          console.log(`[CRON] Recordatorio enviado para cita ${appointment.id}`);
-        } else {
-          console.error(`[CRON] Error enviando recordatorio para cita ${appointment.id}:`, result.error);
         }
       }
     } catch (error) {

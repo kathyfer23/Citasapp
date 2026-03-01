@@ -6,6 +6,7 @@ import '../screens/patients/patients_screen.dart';
 import '../screens/patients/patient_detail_screen.dart';
 import '../screens/patients/patient_form_screen.dart';
 import '../screens/appointments/appointment_form_screen.dart';
+import '../screens/appointments/consultation_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/main/profile_screen.dart';
 import '../screens/main/reports_screen.dart';
@@ -18,6 +19,7 @@ class AppRoutes {
   static const String patientDetail = '/patients/detail';
   static const String patientForm = '/patients/form';
   static const String appointmentForm = '/appointments/form';
+  static const String consultation = '/appointments/consultation';
   static const String settings = '/settings';
   static const String profile = '/profile';
   static const String reports = '/reports';
@@ -45,6 +47,9 @@ class AppRoutes {
           preselectedPatientId: args?['patientId'],
           preselectedDate: args?['date'],
         ));
+      case consultation:
+        final appointmentId = settings.arguments as String;
+        return _buildRoute(ConsultationScreen(appointmentId: appointmentId));
       case AppRoutes.settings:
         return _buildRoute(const SettingsScreen());
       case profile:

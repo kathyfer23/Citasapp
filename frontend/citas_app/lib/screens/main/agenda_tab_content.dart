@@ -141,6 +141,8 @@ class _AgendaTabContentState extends State<AgendaTabContent> {
                               context, appointment, provider),
                           onSendReminder: () =>
                               _sendReminder(context, appointment.id, provider),
+                          onSendWhatsApp: () =>
+                              _sendWhatsAppReminder(context, appointment.id, provider),
                           onUpdateStatus: (status) =>
                               provider.updateStatus(appointment.id, status),
                         ),
@@ -231,6 +233,34 @@ class _AgendaTabContentState extends State<AgendaTabContent> {
                 if (appointment.notes != null &&
                     appointment.notes!.isNotEmpty)
                   _detailRow(Icons.notes, 'Notas', appointment.notes!),
+
+                // Badge de resumen IA disponible
+                if (appointment.aiSummary != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.auto_awesome, size: 16, color: AppColors.success),
+                        SizedBox(width: 6),
+                        Text(
+                          'Resumen IA disponible',
+                          style: TextStyle(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 24),
                 Row(
                   children: [
@@ -258,7 +288,62 @@ class _AgendaTabContentState extends State<AgendaTabContent> {
                         label: Text(
                           appointment.reminderSent
                               ? 'Enviado'
-                              : 'Recordatorio',
+                              : 'Email',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    // WhatsApp button
+                    if (appointment.patient?.phone != null)
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: appointment.whatsappReminderSent
+                              ? null
+                              : () {
+                                  Navigator.pop(ctx);
+                                  _sendWhatsAppReminder(context, appointment.id, provider);
+                                },
+                          icon: const Icon(Icons.chat, size: 18),
+                          label: Text(
+                            appointment.whatsappReminderSent
+                                ? 'WA Enviado'
+                                : 'WhatsApp',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: appointment.whatsappReminderSent
+                                ? null
+                                : const Color(0xFF25D366),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    if (appointment.patient?.phone != null)
+                      const SizedBox(width: 12),
+                    // Consultation button
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          Navigator.pushNamed(
+                            ctx,
+                            AppRoutes.consultation,
+                            arguments: appointment.id,
+                          );
+                        },
+                        icon: Icon(
+                          appointment.transcription != null
+                              ? Icons.visibility
+                              : Icons.mic,
+                          size: 18,
+                        ),
+                        label: Text(
+                          appointment.transcription != null
+                              ? 'Ver Consulta'
+                              : 'Iniciar Consulta',
                         ),
                       ),
                     ),
@@ -317,6 +402,27 @@ class _AgendaTabContentState extends State<AgendaTabContent> {
             success
                 ? 'Recordatorio enviado'
                 : 'Error al enviar recordatorio',
+          ),
+          backgroundColor: success ? AppColors.success : AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _sendWhatsAppReminder(
+    BuildContext context,
+    String appointmentId,
+    AppointmentProvider provider,
+  ) async {
+    final success = await provider.sendWhatsAppReminder(appointmentId);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'WhatsApp enviado'
+                : provider.error ?? 'Error al enviar WhatsApp',
           ),
           backgroundColor: success ? AppColors.success : AppColors.error,
           behavior: SnackBarBehavior.floating,

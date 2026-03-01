@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../models/appointment_model.dart';
 import 'api_service.dart';
@@ -74,15 +75,18 @@ class AppointmentService {
           'appointment': Appointment.fromJson(response.data['data']),
         };
       }
-      
+
       return {'success': false, 'message': response.data['message']};
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? 'Error al crear cita';
+      return {'success': false, 'message': msg};
     } catch (e) {
       return {'success': false, 'message': 'Error al crear cita'};
     }
   }
 
   Future<Map<String, dynamic>> updateAppointment(
-    String id, 
+    String id,
     Appointment appointment,
   ) async {
     try {
@@ -97,8 +101,11 @@ class AppointmentService {
           'appointment': Appointment.fromJson(response.data['data']),
         };
       }
-      
+
       return {'success': false, 'message': response.data['message']};
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? 'Error al actualizar cita';
+      return {'success': false, 'message': msg};
     } catch (e) {
       return {'success': false, 'message': 'Error al actualizar cita'};
     }
@@ -147,10 +154,75 @@ class AppointmentService {
       if (response.data['success']) {
         return {'success': true};
       }
-      
+
       return {'success': false, 'message': response.data['message']};
     } catch (e) {
       return {'success': false, 'message': 'Error al enviar recordatorio'};
+    }
+  }
+
+  Future<Map<String, dynamic>> sendWhatsAppReminder(String appointmentId) async {
+    try {
+      final response = await _api.post(
+        '${ApiConfig.reminders}/$appointmentId/whatsapp',
+      );
+
+      if (response.data['success']) {
+        return {'success': true};
+      }
+
+      return {'success': false, 'message': response.data['message']};
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? 'Error al enviar WhatsApp';
+      return {'success': false, 'message': msg};
+    } catch (e) {
+      return {'success': false, 'message': 'Error al enviar WhatsApp'};
+    }
+  }
+
+  Future<Map<String, dynamic>> saveTranscription(String id, String text) async {
+    try {
+      final response = await _api.post(
+        '${ApiConfig.appointments}/$id/transcription',
+        data: {'transcription': text},
+      );
+
+      if (response.data['success']) {
+        return {
+          'success': true,
+          'appointment': Appointment.fromJson(response.data['data']),
+        };
+      }
+
+      return {'success': false, 'message': response.data['message']};
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? 'Error al guardar transcripción';
+      return {'success': false, 'message': msg};
+    } catch (e) {
+      return {'success': false, 'message': 'Error al guardar transcripción'};
+    }
+  }
+
+  Future<Map<String, dynamic>> generateSummary(String id, {String? transcription}) async {
+    try {
+      final response = await _api.post(
+        '${ApiConfig.appointments}/$id/summarize',
+        data: transcription != null ? {'transcription': transcription} : null,
+      );
+
+      if (response.data['success']) {
+        return {
+          'success': true,
+          'appointment': Appointment.fromJson(response.data['data']),
+        };
+      }
+
+      return {'success': false, 'message': response.data['message']};
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? 'Error al generar resumen';
+      return {'success': false, 'message': msg};
+    } catch (e) {
+      return {'success': false, 'message': 'Error al generar resumen'};
     }
   }
 }

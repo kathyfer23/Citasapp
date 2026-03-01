@@ -1,5 +1,6 @@
 const { successResponse, errorResponse } = require('../utils/response');
 const { sendAppointmentReminder } = require('../services/email.service');
+const { sendWhatsAppReminder, isWhatsAppConfigured } = require('../services/whatsapp.service');
 
 const sendReminder = async (req, res) => {
   try {
@@ -60,6 +61,70 @@ const sendReminder = async (req, res) => {
   }
 };
 
+const sendWhatsAppReminderManual = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+
+    if (!isWhatsAppConfigured()) {
+      return errorResponse(res, 'WhatsApp no está configurado en el servidor', 400);
+    }
+
+    const appointment = await req.prisma.appointment.findFirst({
+      where: {
+        id: appointmentId,
+        userId: req.user.id
+      },
+      include: {
+        patient: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    if (!appointment) {
+      return errorResponse(res, 'Cita no encontrada', 404);
+    }
+
+    if (appointment.status !== 'scheduled') {
+      return errorResponse(res, 'Solo se pueden enviar recordatorios de citas programadas', 400);
+    }
+
+    if (new Date(appointment.dateTime) <= new Date()) {
+      return errorResponse(res, 'No se pueden enviar recordatorios de citas pasadas', 400);
+    }
+
+    if (!appointment.patient.phone) {
+      return errorResponse(res, 'El paciente no tiene número de teléfono registrado', 400);
+    }
+
+    const result = await sendWhatsAppReminder(
+      appointment,
+      appointment.patient,
+      appointment.user
+    );
+
+    if (!result.success) {
+      return errorResponse(res, result.error || 'Error al enviar WhatsApp', 500);
+    }
+
+    await req.prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { whatsappReminderSent: true }
+    });
+
+    return successResponse(res, { sent: true }, 'Recordatorio WhatsApp enviado exitosamente');
+  } catch (error) {
+    console.error('Error enviando WhatsApp:', error);
+    return errorResponse(res, 'Error al enviar recordatorio WhatsApp', 500);
+  }
+};
+
 module.exports = {
-  sendReminder
+  sendReminder,
+  sendWhatsAppReminderManual
 };

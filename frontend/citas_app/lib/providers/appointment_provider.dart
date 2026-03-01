@@ -66,6 +66,30 @@ class AppointmentProvider with ChangeNotifier {
     return map;
   }
 
+  /// Obtener citas programadas para una fecha específica
+  List<Appointment> getAppointmentsForDate(DateTime date) {
+    return _appointments.where((apt) {
+      return apt.dateTime.year == date.year &&
+             apt.dateTime.month == date.month &&
+             apt.dateTime.day == date.day &&
+             apt.status == AppointmentStatus.scheduled;
+    }).toList()
+      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+  }
+
+  /// Verificar si un horario genera conflicto con citas existentes
+  Appointment? checkConflict(DateTime dateTime, int duration, {String? excludeId}) {
+    final endTime = dateTime.add(Duration(minutes: duration));
+    for (final apt in _appointments) {
+      if (apt.status != AppointmentStatus.scheduled) continue;
+      if (excludeId != null && apt.id == excludeId) continue;
+      if (dateTime.isBefore(apt.endTime) && endTime.isAfter(apt.dateTime)) {
+        return apt;
+      }
+    }
+    return null;
+  }
+
   void setSelectedDate(DateTime date) {
     _selectedDate = date;
     notifyListeners();
@@ -218,6 +242,73 @@ class AppointmentProvider with ChangeNotifier {
         _appointments[index] = _appointments[index].copyWith(reminderSent: true);
         notifyListeners();
       }
+      return true;
+    } else {
+      _error = result['message'];
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> sendWhatsAppReminder(String appointmentId) async {
+    final result = await _appointmentService.sendWhatsAppReminder(appointmentId);
+
+    if (result['success']) {
+      final index = _appointments.indexWhere((a) => a.id == appointmentId);
+      if (index != -1) {
+        _appointments[index] = _appointments[index].copyWith(whatsappReminderSent: true);
+        notifyListeners();
+      }
+      return true;
+    } else {
+      _error = result['message'];
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> saveTranscription(String id, String text) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    final result = await _appointmentService.saveTranscription(id, text);
+
+    _isLoading = false;
+
+    if (result['success']) {
+      final updated = result['appointment'] as Appointment;
+      final index = _appointments.indexWhere((a) => a.id == id);
+      if (index != -1) {
+        _appointments[index] = updated;
+      }
+      _selectedAppointment = updated;
+      notifyListeners();
+      return true;
+    } else {
+      _error = result['message'];
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> generateSummary(String id, {String? transcription}) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    final result = await _appointmentService.generateSummary(id, transcription: transcription);
+
+    _isLoading = false;
+
+    if (result['success']) {
+      final updated = result['appointment'] as Appointment;
+      final index = _appointments.indexWhere((a) => a.id == id);
+      if (index != -1) {
+        _appointments[index] = updated;
+      }
+      _selectedAppointment = updated;
+      notifyListeners();
       return true;
     } else {
       _error = result['message'];

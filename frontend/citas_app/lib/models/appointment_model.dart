@@ -55,7 +55,7 @@ class Appointment {
   factory Appointment.fromJson(Map<String, dynamic> json) {
     return Appointment(
       id: json['id'],
-      dateTime: DateTime.parse(json['dateTime']),
+      dateTime: DateTime.parse(json['dateTime']).toLocal(),
       duration: json['duration'] ?? 30,
       status: AppointmentStatus.fromString(json['status'] ?? 'scheduled'),
       notes: json['notes'],
@@ -63,7 +63,7 @@ class Appointment {
       whatsappReminderSent: json['whatsappReminderSent'] ?? false,
       transcription: json['transcription'],
       aiSummary: json['aiSummary'],
-      createdAt: DateTime.parse(json['createdAt']),
+      createdAt: DateTime.parse(json['createdAt']).toLocal(),
       patientId: json['patientId'],
       patient: json['patient'] != null
           ? Patient.fromJson(json['patient'])

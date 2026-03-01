@@ -210,16 +210,25 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
               // Selector de paciente
               Consumer<PatientProvider>(
                 builder: (context, provider, _) {
-                  // Si hay un paciente preseleccionado
+                  // Si hay un paciente preseleccionado por ID
                   if (widget.preselectedPatientId != null && _selectedPatient == null) {
-                    _selectedPatient = provider.patients.firstWhere(
+                    final match = provider.patients.where(
                       (p) => p.id == widget.preselectedPatientId,
-                      orElse: () => provider.patients.first,
                     );
+                    if (match.isNotEmpty) _selectedPatient = match.first;
+                  }
+
+                  // Asegurar que _selectedPatient sea una instancia de la lista del provider
+                  Patient? dropdownValue;
+                  if (_selectedPatient != null) {
+                    final match = provider.patients.where(
+                      (p) => p.id == _selectedPatient!.id,
+                    );
+                    dropdownValue = match.isNotEmpty ? match.first : null;
                   }
 
                   return DropdownButtonFormField<Patient>(
-                    value: _selectedPatient,
+                    value: dropdownValue,
                     decoration: InputDecoration(
                       labelText: 'Paciente',
                       prefixIcon: const Icon(Icons.person_outline),
